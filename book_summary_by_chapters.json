@@ -1,0 +1,28 @@
+{
+  "Introduction": {
+    "summary": [
+      [
+        "The text examines the questions posed by Konrad Adenauer about the possibility of genuine long-range policy and true leadership in contemporary times. By analyzing the lives of six significant twentieth-century leaders, the text explores the conditions required for effective leadership, including character, intellect, and resilience. It reflects on the recurring emergence of leaders during challenging times, as highlighted by figures like Sadat, Lee, Thatcher, and others who rose unexpectedly to prominence. Drawing from Machiavelli's observation on societal complacency in peaceful times and the impact of adversity in awakening meaningful leadership, the text underscores the need for leaders to turn potential into action. It challenges Engels' prediction of the diminishing role of individual leadership, emphasizing instead the human elements crucial for historical greatness. Max Weber’s concept of a political vocation is cited, focusing on a leader's resilience and resolve in the face of opposition. The text also stresses the essential qualities that leaders must have, such as understanding societal contexts, strategic planning, inspiring collective purpose, and maintaining faith in the future. Ultimately, it suggests that great leadership merges intangible visions with practical actions, suggesting that individuals can still shape history by deepening understanding, refining strategies, and strengthening character, following Epictetus' idea of choosing responses to circumstances.",
+        "\n        messages=[\n            {\"role\": \"system\", \"content\": \"You are a helpful assistant that summarizes paragraphs from books. Return markdown formatting without any tags around it.\"},\n            {\"role\": \"user\", \"content\": f\"Summarize the following text: {text}\"}\n        "
+      ],
+      "Take the collected summaries for subsections and then summarize using:\nummarize the following text composed of summaries of each subsection of a chapter: {text}"
+    ],
+    "content": [
+      [
+        "The Axes of Leadership",
+        [
+          "Any society, whatever its political system, is perpetually in transit between a past that forms its memory and a vision of the future that inspires its evolution. Along this route, leadership is indispensable: decisions must be made, trust earned, promises kept, a way forward proposed. Within human institutions – states, religions, armies, companies, schools – leadership is needed to help people reach from where they are to where they have never been and, sometimes, can scarcely imagine going. Without leadership, institutions drift, and nations court growing irrelevance and, ultimately, disaster.",
+          "Leaders think and act at the intersection of two axes: the first, between the past and the future; the second, between the abiding values and aspirations of those they lead. Their first challenge is analysis, which begins with a realistic assessment of their society based on its history, mores, and capacities. Then they must balance what they know, which is necessarily drawn from the past, with what they intuit about the future, which is inherently conjectural and uncertain. It is this intuitive grasp of direction that enables leaders to set objectives and lay down a strategy.",
+          "For strategies to inspire the society, leaders must serve as educators – communicating objectives, assuaging doubts and rallying support. While the state possesses by definition the monopoly of force, reliance on coercion is a symptom of inadequate leadership; good leaders elicit in their people a wish to walk alongside them. They must also inspire an immediate entourage to translate their thinking so that it bears upon the practical issues of the day. Such a dynamic surrounding team is the visible complement of the leader’s inner vitality; it provides support for the leader’s journey and ameliorates the dilemmas of decision. Leaders can be magnified – or diminished – by the qualities of those around them.",
+          "The vital attributes of a leader in these tasks, and the bridge between the past and the future, are courage and character – courage to choose a direction among complex and difficult options, which requires the willingness to transcend the routine; and strength of character to sustain a course of action whose benefits and whose dangers can be only incompletely glimpsed at the moment of choice. Courage summons virtue in the moment of decision; character reinforces fidelity to values over an extended period.",
+          "Leadership is most essential during periods of transition, when values and institutions are losing their relevance, and the outlines of a worthy future are in controversy. In such times, leaders are called upon to think creatively and diagnostically: what are the sources of the society’s well-being? Of its decay? Which inheritances from the past should be preserved, and which adapted or discarded? Which objectives deserve commitment, and which prospects must be rejected no matter how tempting? And, at the extreme, is one’s society sufficiently vital and confident to tolerate sacrifice as a waystation to a more fulfilling future?"
+        ],
+        [
+          115,
+          113,
+          138,
+          93,
+          120
+        ],
+        {
+          "text": 
