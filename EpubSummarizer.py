@@ -8,11 +8,15 @@ from tqdm import tqdm
 import tiktoken
 import requests
 import json
+import pickle 
+
 encoding = tiktoken.encoding_for_model("gpt-4")
 
-def summarize_text_OPENAI(messages):
+def summarize_text_OPENAI(messages, openai_key, model):
+    client = OpenAI(api_key=openai_key)
+
     response = client.chat.completions.create(
-        model="gpt-4o-mini", 
+        model=model, 
         messages = messages,
     )
     summary = response.choices[0].message.content.strip()
@@ -47,25 +51,15 @@ def summarize_text_LMSTUDIO(messages, tries=5):
     raise Exception(f"Tries ran out --> {messages}")
 
 
-client = OpenAI(api_key=openai_key)
 SYSTEM_INSTRUCTION = "You are a helpful assistant that summarizes paragraphs from books. Return markdown formatting without any tags around it."
 
-def summarize_text(messages, openAI = True):
-    if openAI:
-        return summarize_text_OPENAI(messages)
+def summarize_text(messages, openai_key=None, model="gpt-4o-mini"):
+    if openai_key is not None:
+        return summarize_text_OPENAI(messages, openai_key, model)
         
     return summarize_text_LMSTUDIO(messages)
 
 def deep_copy_dict(dictionary):
-    """
-    Create a deep copy of a dictionary, handling nested dictionaries, lists, and other objects.
-    
-    Args:
-        dictionary (dict): The input dictionary to copy
-        
-    Returns:
-        dict: A deep copy of the input dictionary
-    """
     # Base case - if input is not a dictionary
     if not isinstance(dictionary, dict):
         # If it's a list, deep copy each element
@@ -86,7 +80,7 @@ def deep_copy_dict(dictionary):
 
 
 class EPUBSummarizer:
-    def __init__(self, title, organized_book):
+    def __init__(self, title, organized_book, openai_key=None):
         self.book_title = title
         self.based_organized_book = organized_book
         self.A_summarized_sections = {}
@@ -94,6 +88,16 @@ class EPUBSummarizer:
         self.C_book_summary = ""
         self.D_summarized_chapters_with_book_context = {}
         self.E_summarized_sections_with_book_and_chapter_context = {}
+        self.openai_key = openai_key
+
+    def get_fingerprint(self):
+
+        if self.openai_key is None:
+            mode= "ownModel"
+        else:
+            model="OpenAI"
+
+        return "_".join(self.book_title.split()) + "__" + model
 
     def A_summarize_sections_for_chapters(self, function_messages_from_text, keys_to_skip):
         print(f"Skipping: {keys_to_skip}\n")
@@ -119,7 +123,7 @@ class EPUBSummarizer:
                             
                             messages = function_messages_from_text(text)
 
-                            summary_text, messages = summarize_text(messages)
+                            summary_text, messages = summarize_text(messages, openai_key=self.openai_key)
 
                             strategy = "Collect paragraphs within subsection (between titles) and summarize those. " + str(messages) 
                             
@@ -152,7 +156,7 @@ class EPUBSummarizer:
 
                     messages = function_messages_from_text(text)
                     
-                    summary_text, messages = summarize_text(messages)
+                    summary_text, messages = summarize_text(messages, openai_key=self.openai_key)
 
                     strategy = "Collect paragraphs within subsection (between titles) and summarize those. " + str(messages) 
 
@@ -168,6 +172,10 @@ class EPUBSummarizer:
                     groups.append(section)
 
                 self.A_summarized_sections[chapter_title] = groups
+
+        pickle_file = "A_summarized_sections__" + self.get_fingerprint() 
+        with open(pickle_file, "wb") as f:
+            pickle.dump(self.A_summarized_sections, f)
 
     def B_summarize_chapter_from_sections_summaries(self):
         self.B_summarized_chapters = deep_copy_dict(self.A_summarized_sections)
@@ -193,7 +201,7 @@ class EPUBSummarizer:
                 {"role": "user", "content": instruction}
             ]
 
-            chapter_summary_text, messages = summarize_text(messages=messages)
+            chapter_summary_text, messages = summarize_text(messages=messages, openai_key=self.openai_key, model="gpt-4o")
             
             strategy = "Take the collected summaries for subsections, the previous book summary and then summarize using: " + str(messages)
 
@@ -203,6 +211,10 @@ class EPUBSummarizer:
                         "content": chapter}
 
             self.B_summarized_chapters[c_title] = chapter
+
+        pickle_file = "B_summarized_chapters" + "__" + self.get_fingerprint() 
+        with open(pickle_file, "wb") as f:
+            pickle.dump(self.B_summarized_chapters, f)
 
     def C_summarize_book_from_chapters(self):
         book_title = self.book_title
@@ -219,9 +231,13 @@ class EPUBSummarizer:
                     {"role": "user", "content": f"Create a concluding summary (in the number of appropriate paragraphs) of the book {book_title} from the summaries of its chapters: {concatenated}"}
             ]
 
-        book_summary_text, messages = summarize_text(messages=messages)
+        book_summary_text, messages = summarize_text(messages=messages, openai_key=self.openai_key, model="gpt-4o")
             
         self.C_book_summary = book_summary_text
+
+        pickle_file = "C_book_summary" + "__" + self.get_fingerprint() 
+        with open(pickle_file, "wb") as f:
+            pickle.dump(self.C_book_summary, f)
 
     
     def D_summarize_chapter_from_sections_summaries_and_book_summary(self):
@@ -249,7 +265,7 @@ class EPUBSummarizer:
                 {"role": "user", "content": instruction}
             ]
 
-            chapter_summary_text, messages = summarize_text(messages=messages)
+            chapter_summary_text, messages = summarize_text(messages=messages, openai_key=self.openai_key, model="gpt-4o")
             
             strategy = "Take the collected summaries for subsections, the previous book summary and then summarize using: " + str(messages)
 
@@ -259,6 +275,10 @@ class EPUBSummarizer:
                         "content": chapter}
 
             self.D_summarized_chapters_with_book_context[c_title] = chapter
+
+        pickle_file = "D_summarized_chapters_with_book_context" + "__" + self.get_fingerprint() 
+        with open(pickle_file, "wb") as f:
+            pickle.dump(self.D_summarized_chapters_with_book_context, f)
         
     def E_summarize_sections_with_book_and_chapter_summaries(self):
         self.E_summarized_sections_with_book_and_chapter_context = deep_copy_dict(self.D_summarized_chapters_with_book_context)
@@ -296,12 +316,15 @@ class EPUBSummarizer:
                     {"role": "user", "content": instruction}
                 ]
             
-                section_summary_text, messages = summarize_text(messages=messages)
+                section_summary_text, messages = summarize_text(messages=messages, openai_key=self.openai_key)
                 
                 strategy = "Take the collected summaries for subsections, the previous book summary and then summarize using: " + str(messages)
             
                 self.E_summarized_sections_with_book_and_chapter_context[c_title]['content'][i]['summary'] = {"strategy": strategy, "text": section_summary_text}
         
+        pickle_file = "E_summarized_sections_with_book_and_chapter_context" + "__" + self.get_fingerprint() 
+        with open(pickle_file, "wb") as f:
+            pickle.dump(self.E_summarized_sections_with_book_and_chapter_context, f)
         
         def F_summarize_by_selection(self, selection_dict):
             result = {}
@@ -322,6 +345,16 @@ class EPUBSummarizer:
                             {"role": "user", "content": instruction}
                     ]
 
-                part_summary, messages = summarize_text(messages=messages)
+                part_summary, messages = summarize_text(messages=messages, openai_key=self.openai_key, model="gpt-4o")
                 result[k] = part_summary
+
+            pickle_file = "F_summarize_by_selection" + "__" + self.get_fingerprint() 
+            saved = {
+                "selection_dict": selection_dict,
+                "result": result
+            }
+
+            with open(pickle_file, "wb") as f:
+                pickle.dump(saved, f)
+
             return result

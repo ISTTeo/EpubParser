@@ -165,15 +165,15 @@ def generate_html(book_title, book_summary, book_chapters, part_summaries={}):
 
     html += "<div class='page-break'></div>"
 
-    if not part_summaries:
+    if part_summaries is None:
         # Add chapter summaries overview
         for chapter_title, chapter in book_chapters.items():
             html += f"<div class='chapter-summary'><h3>{chapter_title}</h3>\n"
             html += f"{text_to_paragraphs(chapter['summary']['text'])}</div>\n"
     else:
-        for part_title, part in part_summaries.items():
+        for part_title, part_summary in part_summaries.items():
             html += f"<div class='chapter-summary'><h3>{part_title}</h3>\n"
-            html += f"{text_to_paragraphs(part['summary']['text'])}</div>\n"
+            html += f"{text_to_paragraphs(part_summary)}</div>\n"
     
     html += "<div class='page-break'></div>"
 
