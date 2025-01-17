@@ -27,7 +27,8 @@ class EPUBProcessor:
         self.book_by_chapters = {}
         self.notes_by_chapter = {}
         self.parsed_chapters = []
-        self.organized_book = {}
+        self.sequential_organized_book = {}
+        self.hierarchical_organized_book = {}
 
         self.C_function__set_section_types_by_classes_and_clean_text = None
     
@@ -136,31 +137,38 @@ class EPUBProcessor:
                 for sI, s in enumerate(c):
                     self.parsed_chapters[cI][sI] = (s[0], s[1].get_text())
 
-    def E_organize_book(self):     
+    def E_organize_book_by_sequential_sections(self):     
         for chapter_sections in self.parsed_chapters:
             result = []
             last_type = None
             combined_title = ""
             first_title = ""
+            title_subtypes = []
 
-            for section_type, content in chapter_sections:
+            for section in chapter_sections:
+                section_type = section[0]
+                content = section[1]
+
                 if section_type == 'title':
                     if last_type == 'title':
                         # Combine with previous title
                         combined_title += " - " + content
+                        title_subtypes.append(section[2])
                     else:
                         # Start new title
                         if combined_title:
-                            result.append(('title', combined_title))
+                            result.append(('title', combined_title, title_subtypes))
                         combined_title = content
+                        title_subtypes = [section[2]]
                     
                     if not first_title:
                         first_title = combined_title
                 else:
                     # Non-title section
                     if combined_title:
-                        result.append(('title', combined_title))
+                        result.append(('title', combined_title, title_subtypes))
                         combined_title = ""
+                        title_subtypes = []
                     result.append((section_type, content))
                 last_type = section_type
             
@@ -168,10 +176,152 @@ class EPUBProcessor:
             if combined_title:
                 result.append(('title', combined_title))
             
-            self.organized_book[first_title] = result
+            self.sequential_organized_book[first_title] = result
         
-        for chapter_title, chapter_sections in self.organized_book.items():
+        for chapter_title, chapter_sections in self.sequential_organized_book.items():
             if (len(chapter_sections) == 1 and chapter_sections[0][0] == 'title'):
-                self.organized_book[chapter_title] = self.organized_book[chapter_title][0][1]
+                self.sequential_organized_book[chapter_title] = self.sequential_organized_book[chapter_title][0][1]
         
-        return self.organized_book
+        return self.sequential_organized_book
+    
+    def E_organize_book_by_hierarchical_sections(self):
+        # Define hierarchy levels (lower number = higher in hierarchy)
+        hierarchy = {"part": 0, "chapter": 1, "subchapter": 2, "section": 3}
+        
+        def create_title_object(title, subtype):
+            return {
+                "type": "title",
+                "subtype": subtype,
+                "content": title,
+                "summary": "",
+                "children": []
+            }
+            
+        def create_paragraph_object(content):
+            return {
+                "type": "paragraph",
+                "content": content
+            }
+
+        def find_appropriate_parent(stack, new_subtype):
+            """Find the appropriate parent level based on hierarchy"""
+            new_level = hierarchy[new_subtype]
+            
+            # Pop from stack until we find appropriate parent level
+            while stack and hierarchy[stack[-1]["subtype"]] >= new_level:
+                stack.pop()
+            
+            return stack[-1] if stack else None
+
+        for chapter_sections in self.parsed_chapters:
+            result = []  # Will store top-level items
+            stack = []   # Track current hierarchy
+            current_title = None
+            current_subtype = None
+            first_title = None
+            
+            for section in chapter_sections:
+                section_type = section[0]
+                content = section[1]
+                
+                if section_type == 'title':
+                    section_subtype = section[2]
+                    
+                    # Handle the previous title if exists
+                    if current_title:
+                        if section_subtype == current_subtype:
+                            # Combine titles of same subtype
+                            current_title += " - " + content
+                            continue
+                        else:
+                            # Create object for previous title
+                            title_obj = create_title_object(current_title, current_subtype)
+                            parent = find_appropriate_parent(stack, current_subtype)
+                            
+                            if parent:
+                                parent["children"].append(title_obj)
+                            else:
+                                result.append(title_obj)
+                            
+                            # Update stack
+                            if parent:
+                                stack = stack[:stack.index(parent) + 1]
+                            else:
+                                stack = []
+                            stack.append(title_obj)
+                    
+                    # Start new title
+                    current_title = content
+                    current_subtype = section_subtype
+                    if not first_title:
+                        first_title = content
+                    
+                else:  # paragraph
+                    para_obj = create_paragraph_object(content)
+                    
+                    # Handle any pending title first
+                    if current_title:
+                        title_obj = create_title_object(current_title, current_subtype)
+                        parent = find_appropriate_parent(stack, current_subtype)
+                        if parent:
+                            parent["children"].append(title_obj)
+                        else:
+                            result.append(title_obj)
+                        stack.append(title_obj)
+                        current_title = None
+                        current_subtype = None
+                    
+                    # Add paragraph to last title in stack or root
+                    if stack:
+                        stack[-1]["children"].append(para_obj)
+                    else:
+                        result.append(para_obj)
+            
+            # Handle final pending title
+            if current_title:
+                title_obj = create_title_object(current_title, current_subtype)
+                parent = find_appropriate_parent(stack, current_subtype)
+                if parent:
+                    parent["children"].append(title_obj)
+                else:
+                    result.append(title_obj)
+            
+            self.hierarchical_organized_book[first_title] = result
+
+        def is_lower_subtype(previous_subtype, curr_subtype):
+            if curr_subtype == 'chapter':
+                if previous_subtype == 'part':
+                    return True
+            
+            return False
+            
+            
+        ###
+        # REORGANIZE THE ROOT of the DICT
+        new_aux = []
+        previous = None
+
+        #print(self.hierarchical_organized_book.keys())
+
+        for k, chap in self.hierarchical_organized_book.items():
+            if k is None:
+                k = ""
+            chap = chap[0]
+
+            if chap['type'] == 'title':
+                if previous is not None and is_lower_subtype(previous['subtype'], chap['subtype']):
+                    previous['children'].append(chap)
+                else:
+                    if previous is not None:
+                        new_aux.append(previous)
+                    previous = chap 
+            else:
+                if previous is not None:
+                    new_aux.append(previous)
+                    previous = chap
+                else:
+                    new_aux.append(chap)
+        
+        self.hierarchical_organized_book = new_aux
+
+        return self.hierarchical_organized_book

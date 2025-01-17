@@ -180,12 +180,11 @@ def generate_html(book_title, book_summary, book_chapters, part_summaries={}):
     # Process each chapter in detail
     for chapter_title, chapter in book_chapters.items():
         html += "<div class='chapter-container'>\n"
-        html += f"<h2>{chapter_title}</h2>\n"
-        if part_summaries:
-            for part in part_summaries:
-                html += f"<b>{part} - {' '.join(part_summaries[part])}</b>\n"
-                html += f"{text_to_paragraphs(part_summaries[part])}</div>\n"
-                html += "<hr>\n"
+        html += f"<div class='chapter-summary'><h2>{chapter_title}</h2>\n"
+        if part_summaries is not None:
+            html += f"{text_to_paragraphs(chapter['summary']['text'])}</div>\n"
+        else:
+            html += "</div>\n"
 
         html += "<hr>\n"
         
