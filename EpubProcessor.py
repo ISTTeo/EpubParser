@@ -47,11 +47,11 @@ class EPUBProcessor:
     def _parse_chapters(self) -> None:
         """Parse chapters into BeautifulSoup objects."""
         self.chapters_html = []
-        for chapter in self.chapters:
+        for i, chapter in enumerate(self.chapters):
             content = chapter.get_content()
             parsed_content = BeautifulSoup(content, 'html.parser')
-            text = parsed_content.get_text()
-            
+            text = parsed_content.get_text().replace("\n", "").replace(" ", "")
+            print(f"{i} -> {text[:30]}")
             if bool(text.strip()):
                 self.chapters_html.append(parsed_content)
     
@@ -137,6 +137,15 @@ class EPUBProcessor:
                 for sI, s in enumerate(c):
                     self.parsed_chapters[cI][sI] = (s[0], s[1].get_text())
 
+    def D2_clearup(self):
+        for i, chapter_sections in enumerate(self.parsed_chapters):
+            clear_sections = []
+            for section in chapter_sections:
+                if section[1] != '':
+                    clear_sections.append(section)
+            
+            self.parsed_chapters[i] = clear_sections
+            
     def E_organize_book_by_sequential_sections(self):     
         for chapter_sections in self.parsed_chapters:
             result = []
@@ -188,19 +197,21 @@ class EPUBProcessor:
         # Define hierarchy levels (lower number = higher in hierarchy)
         hierarchy = {"part": 0, "chapter": 1, "subchapter": 2, "section": 3}
         
-        def create_title_object(title, subtype):
+        def create_title_object(title, subtype, title_html):
             return {
                 "type": "title",
                 "subtype": subtype,
                 "content": title,
+                "content_html": title_html,
                 "summary": "",
                 "children": []
             }
             
-        def create_paragraph_object(content):
+        def create_paragraph_object(content, content_html):
             return {
                 "type": "paragraph",
-                "content": content
+                "content": content,
+                "content_html": content_html,
             }
 
         def find_appropriate_parent(stack, new_subtype):
@@ -217,25 +228,30 @@ class EPUBProcessor:
             result = []  # Will store top-level items
             stack = []   # Track current hierarchy
             current_title = None
+            current_title_html = []
             current_subtype = None
             first_title = None
             
             for section in chapter_sections:
                 section_type = section[0]
                 content = section[1]
+                if type(content) == list:
+                    content = " ".join(content)
+                current_html = [section[-1]]
                 
                 if section_type == 'title':
                     section_subtype = section[2]
                     
                     # Handle the previous title if exists
                     if current_title:
-                        if section_subtype == current_subtype:
-                            # Combine titles of same subtype
+                        if section_subtype == current_subtype and section_subtype != 'part':
+                            # Combine titles of same subtype, except for 'part'
                             current_title += " - " + content
+                            current_title_html.append(current_html)
                             continue
                         else:
                             # Create object for previous title
-                            title_obj = create_title_object(current_title, current_subtype)
+                            title_obj = create_title_object(current_title, current_subtype, current_title_html)
                             parent = find_appropriate_parent(stack, current_subtype)
                             
                             if parent:
@@ -253,15 +269,18 @@ class EPUBProcessor:
                     # Start new title
                     current_title = content
                     current_subtype = section_subtype
+                    current_title_html.append(current_html)
                     if not first_title:
                         first_title = content
                     
                 else:  # paragraph
-                    para_obj = create_paragraph_object(content)
+                    para_obj = create_paragraph_object(content, current_html)
                     
+                    #print(current_title)
                     # Handle any pending title first
-                    if current_title:
-                        title_obj = create_title_object(current_title, current_subtype)
+                    if current_title is not None:
+                        title_obj = create_title_object(current_title, current_subtype, current_title_html)
+                        #print(f"{stack} <-- {section}")
                         parent = find_appropriate_parent(stack, current_subtype)
                         if parent:
                             parent["children"].append(title_obj)
@@ -269,6 +288,7 @@ class EPUBProcessor:
                             result.append(title_obj)
                         stack.append(title_obj)
                         current_title = None
+                        current_title_html = []
                         current_subtype = None
                     
                     # Add paragraph to last title in stack or root
@@ -279,7 +299,7 @@ class EPUBProcessor:
             
             # Handle final pending title
             if current_title:
-                title_obj = create_title_object(current_title, current_subtype)
+                title_obj = create_title_object(current_title, current_subtype, current_title_html)
                 parent = find_appropriate_parent(stack, current_subtype)
                 if parent:
                     parent["children"].append(title_obj)
@@ -292,16 +312,11 @@ class EPUBProcessor:
             if curr_subtype == 'chapter':
                 if previous_subtype == 'part':
                     return True
-            
             return False
             
-            
-        ###
         # REORGANIZE THE ROOT of the DICT
         new_aux = []
         previous = None
-
-        #print(self.hierarchical_organized_book.keys())
 
         for k, chap in self.hierarchical_organized_book.items():
             if k is None:
@@ -309,7 +324,7 @@ class EPUBProcessor:
             chap = chap[0]
 
             if chap['type'] == 'title':
-                if previous is not None and is_lower_subtype(previous['subtype'], chap['subtype']):
+                if previous is not None and 'subtype' in previous and is_lower_subtype(previous['subtype'], chap['subtype']):
                     previous['children'].append(chap)
                 else:
                     if previous is not None:
@@ -322,6 +337,9 @@ class EPUBProcessor:
                 else:
                     new_aux.append(chap)
         
+        if previous is not None:
+            new_aux.append(previous)
+            
         self.hierarchical_organized_book = new_aux
 
         return self.hierarchical_organized_book
